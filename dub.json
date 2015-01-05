@@ -1,0 +1,8 @@
+{
+	"name": "qvm",
+	"description": "Virtual machine to simulate quantum programs",
+	"copyright": "Copyright © 2015,Bayan Rafeh",
+	"authors": ["Bayan Rafeh", "Adel Saleh", "George Zakhour"],
+	"dependencies": {
+	}
+}
