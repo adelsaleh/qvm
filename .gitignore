@@ -1,3 +1,6 @@
+#symlink to qlib/source/qlib, small hack for syntastic
+source/qlib
+
 .dub
 docs.json
 __dummy.html
