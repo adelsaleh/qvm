@@ -1,61 +1,178 @@
 module qvm.handlers;
 
 import std.stdio;
+import std.container.array;
 
 import qlib.collections;
 import qlib.instruction;
 import qvm.state;
+import qvm.operators;
 
 /**
- * An interface that implements a handler for a specific set
- * of instructions, typically instructions with a specific
- * opcode e.g. QubitHandler, OnHandler
+ * Provides an abstraction for scope in
+ * different functions.
  */
-interface InstructionHandler {
+struct ScopeManager {
+    private int[int] qubitMapping;
+    private Stack!(Array!int) scopes;
+    private Array!int current;
+
     /**
-     * Execute the provided instruction.
+     * Go down a level in the scope,
+     * happens when entering a function.
      */
-    void execute(Program p, State s, Instruction ins);
+    void down() {
+        scopes.push(current);
+        current = Array!int();
+    }
+    /**
+     * Go up a level in the scope,
+     * happens when exiting a function.
+     */
+    void up() {
+        foreach(int i; current) {
+            qubitMapping.remove(i);
+        }
+        current = scopes.pop();
+    }
+
+    /**
+     * Add a qubit to the current scope.
+     */
+    bool addQubit(int qubit, int qdesc) {
+        if(qubit !in qubitMapping) {
+            qubitMapping[qubit] = qdesc;
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Get the descriptor of the qubit
+     * in the current scope.
+     */
+    int qubitDesc(int qubit) {
+        return qubitMapping[qubit];
+    }
+
+
+    /**
+     * Checks whether whether we're at the
+     * top level stack or not.
+     */
+    bool atTop() {
+        return scopes.size == 0L;
+    }
+}
+
+struct ProgramState {
+    Program p;
+    State s;
+    CollapsingQueue!int q;
+    ScopeManager sc;
+    
+
+    /**
+     * Implements the null instruction.
+     * TODO: Implement a function in Program for this check
+     */
+    void nullHandler() {
+        if(sc.atTop) {
+            sc.up();
+        }else{
+            p.terminate();
+        }
+    }
+     /**
+     * Implementation of the qubit instruction.
+     * Adds a new qubit to the state.
+     */
+    void qubitHandler() {
+        int desc = s.addQubit(p.front.qubit);
+        sc.addQubit(p.front.qubit, desc);
+    }
+
+    /**
+     * Implementation of the measure instruction.
+     * Measures the specified qubit and prints it to the console.
+     */
+    void measureHandler() {
+        int desc = sc.qubitDesc(p.front.qubit);
+        write(s.measure(desc));
+    }
+
+    /**
+     * Implementation of the on instruction.
+     * Marks a qubit as an argument for a later instruction.
+     */
+    void onHandler() {
+        int desc = sc.qubitDesc(p.front.qubit);
+        q.enqueue(desc);
+    }
+
+
+    /**
+     * Implementation of the apply instruction.
+     * Apply the operator specified on the qubits previously
+     * marked with on.
+     *
+     * TODO: Improve error reporting.
+     */
+    void applyHandler() {
+        if(p.front.op1 < opsAvailable.length) {
+            Array!int args;
+            for(int i = 0; i < args.length; i++) {
+                if(q.size == 0) {
+                    throw new Exception("Not enough arguments for this operator");
+                }
+                args.insert(q.dequeue());
+            }
+            if(q.size > 0) {
+                writeln("WARNING: Exceeded required number of arguments");
+            }
+            q.collapse();
+            s.applyOperator(opsAvailable[p.front.op1], args);
+        }else{
+            p.switchFunction(p.front.op1);
+            sc.down();
+        }
+    }
+
+    /**
+     * Implementation of the load instruction.
+     * Loads a qubit from the collapsing queue.
+     */
+    void loadHandler() {
+        int qdesc = q.dequeue();
+        if(!sc.addQubit(p.front.qubit, qdesc)) {
+            throw new Exception("Qubit declared twice in current scope");
+        }
+    }
+    /**
+     * Dump the raw quantum state into stdout.
+     * TODO: Allow a log file
+     */
+    void dumpHandler() {
+        writeln(s.dump);
+    }
+    
+    void printHandler() {
+        s.print(sc.qubitDesc(p.front.qubit));
+    }
+
+    /*
+     * *REC instructions need a bit more investigation
+     * regarding what they should mean. At this point
+     * this is rather unclear.
+     */
+
+    void srecHandler() {}
+    void erecHandler() {}
+    void qsrecHandler() {}
+    void qerecHandler() {}
+
+    // Not sure what this one means either
+    void fcnotHandler() {}
 }
 
 
-InstructionHandler[] handlers = [];
-
-/**
- * Implementation of the qubit instruction.
- * Adds a new qubit to the state.
- */
-void qubitHandler(Program p, State s, Instruction ins) {
-    s.addQubit(ins.qubit);
-}
-
-/**
- * Implementation of the measure instruction.
- * Measures the specified qubit and prints it to the console.
- */
-void measureHandler(Program p, State s, Instruction ins) {
-    write(s.measure(ins.qubit));
-}
-//TODO: Add a CollapsingQueue to qlib.Program
-
-/**
- * Implementation of the on instruction.
- * Marks a qubit as an argument for a later instruction.
- */
-void onHandler(Program p, State s, Instruction ins) {
-
-}
-
-
-/**
- * Implementation of the apply instruction.
- * Apply the operator specified on the qubits previously
- * marked with on.
- */
-void applyHandler(Program p, State s, Instruction ins) {
-
-}
-
-/**
- * Implementation of the apply `
- */

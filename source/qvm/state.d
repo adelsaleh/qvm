@@ -17,10 +17,13 @@ class State {
      *
      * Params:
      *      index = The index given to the qubit added.
+     * Returns:
+     *      A qubit descriptor( An integer used 
+     *                          to refer to the qubit later. )
      */
  
-    void addQubit(int index) {
-        
+    int addQubit(int index) {
+        return 0;        
     }
 
     /**
@@ -28,14 +31,13 @@ class State {
      * the value.
      *
      * Params:
-     *      index = The index of the qubit to measure.
-     *
+     *      index = The qubit descriptor.
      * Returns:
      *      The value measured(0 or 1)
      * Throws:
-     *      An exception if the qubit is entangled.
+     *      A TangledException if the qubit is entangled.
      */
-    int measure(int index) {
+    int measure(int qdesc) {
         return 0;
     }
 
@@ -48,22 +50,21 @@ class State {
      *      qubits = The indices of the qubits we're applying
      *                  the operators on
      */
-    void applyOperator(R)(Operator op, R qubits) 
-                                if(isRandomAccessRange!R){}
+    void applyOperator(R)(Operator op, R qubits) {}
     
     /**
-     * Dumps the raw state into stdout. This is for debugging
-     * purposes.
+     * Dumps the raw state into a string. 
+     * This is for debugging purposes.
      */
-    void dump() {}
+    string dump() {return "";}
 
     /**
      * Prints the qubit at the specified index to stdout.
      *
      * Params:
-     *      index = The index of the qubit to print.
+     *      index = The qubit descriptor.
      * Throws:
-     *      An exception if the qubit is entangled.
+     *      A TangledException if the qubit is entangled.
      */
-    void print(int index){}
+    void print(int qdesc){}
 }

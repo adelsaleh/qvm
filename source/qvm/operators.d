@@ -1,3 +1,9 @@
 module qvm.operators;
 
-struct Operator {}
+struct Matrix{}
+struct Operator {
+    int argNum;
+    Matrix mat;
+}
+
+Operator[] opsAvailable;
