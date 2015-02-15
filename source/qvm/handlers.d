@@ -83,6 +83,19 @@ struct ProgramState {
             p.terminate();
         }
     }
+    // The next three handlers can probably be reduced to on/apply sequences
+    // so will leave empty stubs for now.
+    void ifHandler() {
+        
+    }
+
+    void ifelseHandler() {
+
+    }
+
+    void loopHandler() {
+        
+    }
      /**
      * Implementation of the qubit instruction.
      * Adds a new qubit to the state.
