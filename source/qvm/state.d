@@ -1,5 +1,5 @@
 module qvm.state;
-
+import qvm.exceptions;
 import qvm.operators;
 import std.range;
 import std.container.array;
@@ -8,7 +8,11 @@ import std.container.array;
  * The current state of the qubits in the current quantum
  * program.
  */
+
+alias Array!(Array!int) ClusterList;
 class State {
+    int[string] qubit_positions;
+    ClusterList clusters;
     
     this() {}
     /**
@@ -16,14 +20,15 @@ class State {
      * state initialized to |0>
      *
      * Params:
-     *      index = The index given to the qubit added.
-     * Returns:
-     *      A qubit descriptor( An integer used 
-     *                          to refer to the qubit later. )
+     *      qubit_name = the name of the given to the qubit.
      */
  
-    int addQubit(int index) {
-        return 0;        
+    void addQubit(string qubit_name) {
+        if(qubit_name in qubit_positions) 
+            throw new DuplicateQubitNameException("Qubit name "~qubit_name~" already exists");
+        qubit_positions[qubit_name] = qubit_positions.length;
+        clusters.insert(Array!double);
+
     }
 
     /**
