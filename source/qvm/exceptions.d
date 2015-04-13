@@ -1,5 +1,8 @@
-class DuplicateQubitNameExeption : Exception {
-    DuplicateQubitNameExeption(string message){
+module qvm.exceptions;
+
+class DuplicateQubitNameException : Exception {
+
+    this (string message){
         super(message);
     }
 }

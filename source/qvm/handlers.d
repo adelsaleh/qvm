@@ -39,7 +39,7 @@ struct ScopeManager {
     /**
      * Add a qubit to the current scope.
      */
-    bool addQubit(int qubit, int qdesc) {
+    bool insertQubit(int qubit, int qdesc) {
         if(qubit !in qubitMapping) {
             qubitMapping[qubit] = qdesc;
             return true;
@@ -101,8 +101,8 @@ struct ProgramState {
      * Adds a new qubit to the state.
      */
     void qubitHandler() {
-        int desc = s.addQubit(p.front.qubit);
-        sc.addQubit(p.front.qubit, desc);
+      //  int desc = s.insertQubit(p.front.qubit);
+      //  sc.insertQubit(p.front.qubit, desc);
     }
 
     /**
@@ -157,7 +157,7 @@ struct ProgramState {
      */
     void loadHandler() {
         int qdesc = q.dequeue();
-        if(!sc.addQubit(p.front.qubit, qdesc)) {
+        if(!sc.insertQubit(p.front.qubit, qdesc)) {
             throw new Exception("Qubit declared twice in current scope");
         }
     }
