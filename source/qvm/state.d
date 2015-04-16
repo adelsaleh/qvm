@@ -1,73 +1,78 @@
 module qvm.state;
+import std.stdio;
 import qvm.exceptions;
 import qvm.operators;
+import qvm.clutteredsubstate;
+import qvm.expandedsubstate;
+import qvm.substate;
+import std.algorithm;
 import std.range;
-import std.container.array;
+import std.complex;
+import std.math;
+import std.container;
+import std.range: takeOne;
+import std.conv;
 
-
-struct Coefstate{
-    double coefficient;
-    int state;
+struct Positions{
+    int pos_in_clust; // Position of the qbit in the cluster
+    int pos_in_state; // Position of the qbit in the state
 }
-
-struct Cluster{
-    int number_of_qubits;
-    Array!Coefstates states;    
-}
-
-alias Array!(Cluster) ClusterList;
 
 /**
- * The current state of the qubits in the current quantum
+ * The current state of the qbits in the current quantum
  * program.
  */
 class State {
-    int[string] qubit_positions;
-    ClusterList clusters;
+    Positions[int] qbit_positions; // The position dictionary
+    Array!(Substate) clusters;     //  THE FUCKING STATES!!!
     
     this() {}
-    /**
-     * Adds a qubit to the current quantum
-     * state initialized to |0>
-     *
-     * Params:
-     *      qubit_name = the name of the given to the qubit.
-     */
- 
-    void addQubit(string qubit_name) {
-        if(qubit_name in qubit_positions) 
-            throw new DuplicateQubitNameException("Qubit name "~qubit_name~" already exists");
-        qubit_positions[qubit_name] = qubit_positions.length;
-        Cluster c = Cluster(1, Array!Coefstate());
-        c.states.add(Coefstate(1,0));
-        clusters.insert(c);
-    }
 
     /**
-     * Measures the qubit at the provided index and returns
+     * Adds a qbit to the current quantum
+     * state initialized to |0>. By default,
+     * every cluster is initialized to a ClutteredSubstate
+     *
+     *
+     * Params:
+     *      qbit_id = the address of the i: of the given to the qbit.
+     */
+    void insertQubit(int qbit_id) {
+        if(qbit_id in qbit_positions) 
+            throw new DuplicateQubitNameException("Qubit name "~to!string(qbit_id)~" already exists");
+        qbit_positions[qbit_id] = Positions(qbit_positions.length,0);
+        clusters.insert(new ClutteredSubstate(qbit_positions));
+    }
+    unittest{
+    }
+
+
+    /**
+     * Measures the qbit at the provided index and returns
      * the value.
      *
      * Params:
-     *      index = The qubit descriptor.
+     *      index = The qbit descriptor.
      * Returns:
      *      The value measured(0 or 1)
      * Throws:
-     *      A TangledException if the qubit is entangled.
+     *      A TangledException if the qbit is entangled.
      */
-    int measure(int qdesc) {
-        return 0;
+    int measure(int qbit_id) {
+        return 
+            clusters[qbit_positions[qbit_id].pos_in_state].measure(qbit_positions[qbit_id].pos_in_clust);
     }
 
     /**
-     * Applies the operator op on the list of qubits provided
+     * Applies the operator op on the list of qbits provided
      * in R. R must be a container of ints.
      *
      * Params:
      *      op = The operator we need to apply.
-     *      qubits = The indices of the qubits we're applying
+     *      qbits = The indices of the qbits we're applying
      *                  the operators on
      */
-    void applyOperator(R)(Operator op, R qubits) {}
+    void applyOperator(R)(Operator op, R qbits) {}
     
     /**
      * Dumps the raw state into a string. 
@@ -76,42 +81,57 @@ class State {
     string dump() {return "";}
 
     /**
-     * Prints the qubit at the specified index to stdout.
+     * Prints the qbit at the specified index to stdout.
      *
      * Params:
-     *      index = The qubit descriptor.
+     *      index = The qbit descriptor.
      * Throws:
-     *      A TangledException if the qubit is entangled.
+     *      A TangledException if the qbit is entangled.
      */
-    void print(int qdesc){}
+    void print(int qdesc){
+    }
 
-    
+   
+    /**
+     * Expands the tensor product of a given cluster and 
+     * the cluster that follows it, and saves the result in 
+     * the first cluster
+     *
+     * Params:
+     *      cluster_index = the index of the cluster 
+     */
     void expand(int cluster_index){
-        int counter;
-        Cluster c1 = clusters[cluster_index];
-        Cluster c2 = clusters[cluster_index++];
-        foreach(Coefstate coeff_state_1; clusters[cluster_index].states){
-            foreach(Coefstate coeff_state_2; clusters[cluster_index+1].states){
-                if(counter < c1.states.length)
-                    clusters[cluster_index].states[counter++] =
-                        Coefstate(coeff_state_1.coefficient * coeff_state_2.coefficient,
-                        tensor(coef_state_1.state, coef_state_2.state, c2.number_of_qubits));
-                else {
-                    cluster[cluster_index].states.add(
-                              Coefstate(coeff_state1.coefficient * coeff_state2.coefficient,
-                              tensor(coef_state1.state, coef_state2.state, c2.number_of_qubits))
-                             );
-                }
+        foreach(int qbit_id; qbit_positions.byKey()){
+            if(qbit_positions[qbit_id].pos_in_state==cluster_index+1){
+                qbit_positions[qbit_id].pos_in_state -= 1;
+                qbit_positions[qbit_id].pos_in_clust +=
+                    clusters[cluster_index].num_of_qbits;
             }
         }
-        c1.number_of_qubits += c2.number_of_qubits;
-        clusters.removeKey(cluster_index++);
+        clusters[cluster_index].expand(clusters[cluster_index+1]);
+        removeElement(clusters, cluster_index+1);    
     }
-    
-    private int tensor(int state1, int state2, int b){
-        state1<<=b;
-        state1 = state1|state2;
-        return state1;    
+
+    static void removeElement(R)(ref Array!R arr, int index){
+        Array!R newArr;
+        for(int i=0; i<arr.length; i++){
+            if(i!=index)
+                newArr.insert(arr[i]);
+        }
+        arr = newArr;
+    }
+
+    unittest {
+        Array!int a;
+        a.insert(1);
+        a.insert(2);
+        a.insert(3);
+        removeElement(a, 1);
+        //writeln("\n",a[0..$]);
+        assert(a==Array!int([1,3]));
+    }
+
+    void expand(int from, int to){
     }
 
     void expandAll(){
