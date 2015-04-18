@@ -8,15 +8,18 @@ struct Coefstate{
 }
 
 abstract class Substate{
-   public int num_of_qbits;
+   int num_of_qbits;
    
    this(){
        this.num_of_qbits = 1;
    }  
+   this(int num_of_qbits){
+       this.num_of_qbits = num_of_qbits;
+   }
 
    abstract int measure(int qubit_id);   
    abstract void applyOperator(R)(Operator op, R qubits);
-   abstract void dump();
+   abstract string dump();
    abstract void print();
    abstract void expand(Substate sub);
    abstract bool empty();

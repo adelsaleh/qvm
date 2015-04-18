@@ -4,6 +4,5 @@
 	"copyright": "Copyright © 2015,Bayan Rafeh",
 	"authors": ["Bayan Rafeh", "Adel Saleh", "George Zakhour"],
 	"dependencies": {
-        "qlib": { "path" : "../qlib" }
 	}
 }

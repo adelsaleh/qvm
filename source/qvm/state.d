@@ -6,6 +6,7 @@ import qvm.clutteredsubstate;
 import qvm.expandedsubstate;
 import qvm.substate;
 import std.algorithm;
+import std.random;
 import std.range;
 import std.complex;
 import std.math;
@@ -78,7 +79,39 @@ class State {
      * Dumps the raw state into a string. 
      * This is for debugging purposes.
      */
-    string dump() {return "";}
+    string dump() {
+        string s = "|\u03D5 > = ";
+        foreach(Substate sub; clusters){
+            s ~= "(" ~ sub.dump() ~ ") \u2297\n       ";
+        }
+        return s[0 .. $-9];
+    }
+    unittest{
+        writeln("Testing dump() in State...");
+        Array!Coefstate a;
+        Array!Coefstate b;
+        auto qbitnum = uniform(1,4);
+        for(int i=0; i<pow(2, qbitnum); i++){
+            a.insert(Coefstate(
+               complex(uniform01!double(),
+                       uniform01!double()), i)
+            );
+            b.insert(Coefstate(
+               complex(uniform01!double(),
+                       uniform01!double()), i)
+            );
+        }
+        ClutteredSubstate clut1 = new ClutteredSubstate(); 
+        ClutteredSubstate clut2 = new ClutteredSubstate(); 
+        clut1.states=a;
+        clut2.states=b;
+        State st = new State();
+        st.clusters.insert(clut1);
+        st.clusters.insert(clut2);
+        writeln(st.dump());
+        writeln("Done!\n");
+    }
+
 
     /**
      * Prints the qbit at the specified index to stdout.
@@ -122,13 +155,14 @@ class State {
     }
 
     unittest {
+        writeln("Testing removeElement() in State...");
         Array!int a;
         a.insert(1);
         a.insert(2);
         a.insert(3);
         removeElement(a, 1);
-        //writeln("\n",a[0..$]);
         assert(a==Array!int([1,3]));
+        writeln("Done!\n");
     }
 
     void expand(int from, int to){
