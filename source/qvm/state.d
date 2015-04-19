@@ -44,7 +44,16 @@ class State {
         qbit_positions[qbit_id] = Positions(qbit_positions.length,0);
         clusters.insert(new ClutteredSubstate(qbit_positions));
     }
+
     unittest{
+        writeln("Testing insertQubit() in State...");
+        State s=new State();
+        s.insertQubit(1);
+        s.insertQubit(2);
+        s.insertQubit(3); 
+        writeln(s.dump());
+        assert(s.qbit_positions.length==3);
+        writeln("Done!\n");
     }
 
 
@@ -82,9 +91,13 @@ class State {
     string dump() {
         string s = "|\u03D5 > = ";
         foreach(Substate sub; clusters){
-            s ~= "(" ~ sub.dump() ~ ") \u2297\n       ";
+            s ~= sub.num_of_states()==1 
+                 ? 
+                 sub.dump() ~ " \u2297  "
+                 :
+                 "(" ~ sub.dump() ~ ") \u2297  ";
         }
-        return s[0 .. $-9];
+        return s[0 .. $-3];
     }
     unittest{
         writeln("Testing dump() in State...");
@@ -93,12 +106,12 @@ class State {
         auto qbitnum = uniform(1,4);
         for(int i=0; i<pow(2, qbitnum); i++){
             a.insert(Coefstate(
-               complex(uniform01!double(),
+               complex(pow(-1.0,i%2)*uniform01!double(),
                        uniform01!double()), i)
             );
             b.insert(Coefstate(
                complex(uniform01!double(),
-                       uniform01!double()), i)
+                       pow(-1.0,i%2)*uniform01!double()), i)
             );
         }
         ClutteredSubstate clut1 = new ClutteredSubstate(); 

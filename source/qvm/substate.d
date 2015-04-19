@@ -25,4 +25,5 @@ abstract class Substate{
    abstract bool empty();
    abstract Coefstate front();
    abstract void popFront();
+   abstract int num_of_states();
 }

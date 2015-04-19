@@ -1,5 +1,6 @@
 module qvm.expandedsubstate;
 import qvm.substate;
+import std.stdio;
 import qvm.state;
 import std.complex;
 import std.conv;
@@ -11,7 +12,7 @@ import std.math;
 class ExpandedSubstate : Substate{
     Complex!double[] states;
     Positions[int] qubit_positions;
-    int currentIndex;
+    int currentIndex=0;
 
     /**
      * Constructs an expanded substate given 
@@ -32,6 +33,11 @@ class ExpandedSubstate : Substate{
         super();
         states= new Complex!double[2];
         states[0]= complex(1,0); 
+    }
+    
+    override
+    int num_of_states(){
+        return states.length;
     }
 
     override
@@ -66,11 +72,37 @@ class ExpandedSubstate : Substate{
     override
     void expand(Substate sub){
     }
+                    
+    override
+    bool empty(){
+        if(currentIndex == states.length){
+            currentIndex = 0;
+            return true;
+        }
+        return false;
+    }
 
     override
-    bool empty(){return false;};
+    Coefstate front(){
+        return Coefstate(states[currentIndex], currentIndex);
+    }
+
+    /**
+     * Pop skips entri
+     */
     override
-    Coefstate front(){return Coefstate();};
-    override
-    void popFront(){};
+    void popFront(){
+        if(!(states[currentIndex+1].re==0 &&
+             states[currentIndex+1].im==0)){
+             currentIndex++;
+         }else{ 
+             currentIndex++;
+             while(currentIndex<states.length&&
+                   states[currentIndex].re==0 && 
+                   states[currentIndex].im==0  
+                   ){
+                 currentIndex++;
+             }
+        }
+    }
 }
