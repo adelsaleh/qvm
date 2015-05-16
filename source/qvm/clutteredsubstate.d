@@ -27,11 +27,12 @@ class ClutteredSubstate : Substate{
     }
     override
     int num_of_states(){
-        return states.length;
+        return cast(int)states.length;
     }    
 
     override
     int measure(int qubit_index){
+        
         return 0;
     }
 

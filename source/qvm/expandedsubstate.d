@@ -37,7 +37,7 @@ class ExpandedSubstate : Substate{
     
     override
     int num_of_states(){
-        return states.length;
+        return cast(int)states.length;
     }
 
     override

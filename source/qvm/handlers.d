@@ -132,23 +132,7 @@ struct ProgramState {
      * TODO: Improve error reporting.
      */
     void applyHandler() {
-        if(p.front.op1 < opsAvailable.length) {
-            Array!int args;
-            for(int i = 0; i < args.length; i++) {
-                if(q.size == 0) {
-                    throw new Exception("Not enough arguments for this operator");
-                }
-                args.insert(q.dequeue());
-            }
-            if(q.size > 0) {
-                writeln("WARNING: Exceeded required number of arguments");
-            }
-            q.collapse();
-            s.applyOperator(opsAvailable[p.front.op1], args);
-        }else{
-            p.switchFunction(p.front.op1);
-            sc.down();
-        }
+
     }
 
     /**

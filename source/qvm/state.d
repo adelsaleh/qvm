@@ -41,7 +41,7 @@ class State {
     void insertQubit(int qbit_id) {
         if(qbit_id in qbit_positions) 
             throw new DuplicateQubitNameException("Qubit name "~to!string(qbit_id)~" already exists");
-        qbit_positions[qbit_id] = Positions(qbit_positions.length,0);
+        qbit_positions[qbit_id] = Positions(cast(int)qbit_positions.length,0);
         clusters.insert(new ClutteredSubstate(qbit_positions));
     }
 
