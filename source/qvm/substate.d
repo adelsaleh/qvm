@@ -1,6 +1,7 @@
 module qvm.substate;
 import std.complex;
 import std.container;
+import qvm.operators;
 
 struct Coefstate{
     Complex!double coefficient;
@@ -8,17 +9,17 @@ struct Coefstate{
 }
 
 abstract class Substate{
-   int num_of_qbits;
+   int num_of_qubits;
    
    this(){
-       this.num_of_qbits = 1;
+       this.num_of_qubits = 1;
    }  
-   this(int num_of_qbits){
-       this.num_of_qbits = num_of_qbits;
+   this(int num_of_qubits){
+       this.num_of_qubits = num_of_qubits;
    }
 
-   abstract int measure(int qubit_id);   
-   abstract void applyOperator(R)(Operator op, R qubits);
+   abstract void measure(int qubit_id);   
+   abstract void applyOperator(Operator op, size_t[] qubits);
    abstract string dump();
    abstract void print();
    abstract void expand(Substate sub);

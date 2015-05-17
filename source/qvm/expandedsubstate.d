@@ -1,17 +1,20 @@
 module qvm.expandedsubstate;
+import std.algorithm.iteration;
+import std.range;
 import qvm.substate;
 import std.stdio;
 import qvm.state;
 import std.complex;
 import std.conv;
 import std.math;
+import std.random;
+import qvm.operators;
 
 /**
  * A substate which is greedy in terms of memory.
  */
 class ExpandedSubstate : Substate{
     Complex!double[] states;
-    Positions[int] qubit_positions;
     int currentIndex=0;
 
     /**
@@ -19,10 +22,9 @@ class ExpandedSubstate : Substate{
      * an array of complex coefficients and qubit
      * position dictionary 
      */
-    this(Complex!double[] states, Positions[int] qubit_positions){
+    this(Complex!double[] states){
         super(cast(int)log2(states.length));
         this.states = states; 
-        this.qubit_positions = qubit_positions;
     }
 
     /**
@@ -41,12 +43,126 @@ class ExpandedSubstate : Substate{
     }
 
     override
-    int measure(int qubit_index){
-        return 0;
+    void measure(int qubit_index){
+        writeln("Measuring: ", qubit_index);
+        double[] pr = [0.0L, 0.0L];
+
+        foreach(int i, Complex!double coef; states) {
+            double r = coef.re;
+            double im = coef.im;
+            if(i & (1 << qubit_index)) {
+                pr[1] += r*r + im*im;
+            }else{
+                pr[0] += r*r + im*im;
+            }
+            
+        }
+        double rand = uniform(0.0L, pr[0]+ pr[1]);
+        ubyte measured = 0;
+        if(rand > pr[0]) {
+            measured = 1;
+        }
+        foreach(int i, Complex!double coef; states) {
+            if((i & (1 << qubit_index)) ^ (measured << qubit_index)) {
+                states[i] = Complex!double(0.0, 0.0);
+            }else{
+                states[i] /= sqrt(pr[measured]);
+            }
+        }
     }
 
+    unittest {
+        writeln("Testing ExpandedSubState measurement");
+        double s = 1/sqrt(2.0L);
+        ExpandedSubstate ss = new ExpandedSubstate([Complex!double(s, 0), 
+                                                    Complex!double(0, 0), 
+                                                    Complex!double(0, 0),
+                                                    Complex!double(s, 0)]);
+        ss.measure(1);
+    }
+
+
+    void applyOperator(Operator op) {
+        assert(op.dimension == this.states.length);
+        Complex!double[] new_states = new Complex!double[states.length];
+        for(int i = 0; i < op.dimension; i++) {
+            Complex!double sum = Complex!double(0.0, 0.0);
+            for(int j = 0; j < op.dimension; j++) {
+                sum += states[j]*op.get(i, j);
+            }
+            new_states[i] = sum;
+        }
+        states = new_states;
+    }
+    /**
+     * Switch the amplitudes of the qubits at index first and index
+     * second.
+     */
+    void switch_qubits(size_t first, size_t second) {
+        auto seq = sequence!((a, n) => n)()[0..states.length];
+        int[int] swapped;
+
+        foreach(size_t i; seq.filter!(a => (a & (1 << first)))) {
+            writeln(i);
+            byte first_bit = (i >> first) & 0x1;
+            byte second_bit = (i >> second) & 0x1;
+
+            size_t new_i = i & ~(1 << first);
+            new_i &= ~(1 << second);
+            new_i |= first_bit << second;
+            new_i |= second_bit << first;
+            writeln(new_i);
+
+            auto tmp = states[i];
+            states[i] = states[new_i];
+            states[new_i] = tmp;
+        }
+    }
+
+    unittest {
+        writeln("Testing switch for ExpandedSubstate");
+        double s = 1/sqrt(2.0);
+        Complex!double[] init = [Complex!double(s*s, 0)
+                                ,Complex!double(0, 0)
+                                ,Complex!double(s*s, 0)
+                                ,Complex!double(s, 0)
+                                ,Complex!double(0, 0)
+                                ,Complex!double(0, 0)
+                                ,Complex!double(0, 0)
+                                ,Complex!double(0, 0)];
+        auto ss = new ExpandedSubstate(init);
+        writeln(ss.dump);
+        ss.switch_qubits(1, 2);
+        writeln(ss.dump);
+    }
     override
-    void applyOperator(R)(Operator op, R qubits){
+    void applyOperator(Operator op, size_t[] qubits){
+        if(op.dimension != qubits.length) {
+            throw new Exception("Invalid number of qubits");
+        }
+        for(int i = 0; i < qubits.length; i++) {
+            switch_qubits(i, qubits[i]);
+        }
+        applyOperator(generate_identity(super.num_of_qubits-qubits.length).tensor(op));
+        for(int i = 0; i < qubits.length; i++) {
+            switch_qubits(i, qubits[i]);
+        }
+    }
+
+    unittest {
+        import qvm.operators;
+        writeln("Testing apply operator on ExpandedSubstate");
+        Operator op = generate_hadamard(1);
+        writeln(generate_identity(1));
+        op = op.tensor(generate_identity(1));
+        writeln(op);
+        Complex!double[] init = [Complex!double(1, 0)
+                                ,Complex!double(0, 0)
+                                ,Complex!double(0, 0)
+                                ,Complex!double(0, 0)];
+        auto ss = new ExpandedSubstate(init);
+        ss.applyOperator(op);
+        writeln(ss.dump);
     }
 
     /**

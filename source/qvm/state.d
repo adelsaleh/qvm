@@ -13,98 +13,173 @@ import std.math;
 import std.container;
 import std.range: takeOne;
 import std.conv;
+import qlib.collections;
 
 struct Positions{
-    int pos_in_clust; // Position of the qbit in the cluster
-    int pos_in_state; // Position of the qbit in the state
+    int pos_in_clust; // Position of the qubits in the cluster
+    int pos_in_state; // Position of the qubits in the state
 }
 
 /**
- * The current state of the qbits in the current quantum
+ * The current state of the qubits in the current quantum
  * program.
  */
 class State {
-    Positions[int] qbit_positions; // The position dictionary
     Array!(Substate) clusters;     //  THE FUCKING STATES!!!
     
     this() {}
 
     /**
-     * Adds a qbit to the current quantum
+     * Adds a qubits to the current quantum
      * state initialized to |0>. By default,
      * every cluster is initialized to a ClutteredSubstate
      *
      *
-     * Params:
-     *      qbit_id = the address of the i: of the given to the qbit.
      */
-    void insertQubit(int qbit_id) {
-        if(qbit_id in qbit_positions) 
-            throw new DuplicateQubitNameException("Qubit name "~to!string(qbit_id)~" already exists");
-        qbit_positions[qbit_id] = Positions(cast(int)qbit_positions.length,0);
-        clusters.insert(new ClutteredSubstate(qbit_positions));
+    void insertQubit() {
+        clusters.insert(new ClutteredSubstate());
     }
 
     unittest{
         writeln("Testing insertQubit() in State...");
         State s=new State();
-        s.insertQubit(1);
-        s.insertQubit(2);
-        s.insertQubit(3); 
+        s.insertQubit();
+        s.insertQubit();
+        s.insertQubit(); 
         writeln(s.dump());
-        assert(s.qbit_positions.length==3);
         writeln("Done!\n");
     }
 
 
     /**
-     * Measures the qbit at the provided index and returns
+     * Measures the qubits at the provided index and returns
      * the value.
      *
      * Params:
-     *      index = The qbit descriptor.
-     * Returns:
-     *      The value measured(0 or 1)
-     * Throws:
-     *      A TangledException if the qbit is entangled.
+     *      index = The qubits descriptor.
      */
-    int measure(int qbit_id) {
-        return 
-            clusters[qbit_positions[qbit_id].pos_in_state].measure(qbit_positions[qbit_id].pos_in_clust);
+    void measure(int qubit_index) {
+        int qubits = 0;
+        int i = 0;
+        for(i = 0; i < clusters.length; i++) {
+            if(qubits+clusters[i].num_of_qubits > qubit_index) {
+                break;
+            }
+            qubits += clusters[i].num_of_qubits;
+        }
+        clusters[i].measure(qubit_index - qubits);
     }
 
+    unittest {
+        writeln("Testing measurement in State");
+        double s = 1/sqrt(2.0L);
+        State state = new State();
+        Complex!double[] bellStates = [Complex!double(s, 0)
+                                    ,Complex!double(0, 0)
+                                    ,Complex!double(0, 0)
+                                    ,Complex!double(s, 0)];
+
+
+        Complex!double[] invBellStates = [Complex!double(s, 0)
+                                       ,Complex!double(0, 0)
+                                       ,Complex!double(0, 0)
+                                       ,Complex!double(-s, 0)];
+        state.clusters.insert(new ExpandedSubstate(bellStates));
+        state.clusters.insert(new ExpandedSubstate(invBellStates));
+        writeln(state.clusters[0].num_of_qubits);
+        state.measure(3);
+        writeln(state.dump);
+    }
+
+    size_t find_cluster(size_t qubit) {
+        int qubits = 0;
+        for(int i = 0; i < clusters.length; i++) {
+            qubits += clusters[i].num_of_qubits;
+            if(qubits > qubit) {
+                return i;
+                
+            }
+        }
+
+        throw new Exception("Cluster not found");
+    }
+    unittest {
+        writeln("Testing find_cluster");
+        State s = new State();
+        s.insertQubit();
+        s.insertQubit();
+        writeln(s.dump);
+        
+        writeln("ClusterAAA: ", s.find_cluster(0));
+        writeln("ClusterAAA: ", s.find_cluster(1));
+    }
     /**
-     * Applies the operator op on the list of qbits provided
+     * Applies the operator op on the list of qubits provided
      * in R. R must be a container of ints.
      *
      * Params:
      *      op = The operator we need to apply.
-     *      qbits = The indices of the qbits we're applying
+     *      qubits = The indices of the qubits we're applying
      *                  the operators on
      */
-    void applyOperator(R)(Operator op, R qbits) {}
+
+    void applyOperator(Operator op, size_t[] qubits) {
+        size_t min_cluster = find_cluster(qubits[0]);
+        size_t max_cluster = min_cluster;
+        foreach(qubit; qubits) {
+            size_t cl = find_cluster(qubit);
+            if (cl < min_cluster) {
+                min_cluster = cl;
+            } else if(cl > max_cluster) {
+                max_cluster = cl;
+            }
+        }
+
+        while(max_cluster > min_cluster) {
+            expand(min_cluster);
+            max_cluster--;
+        }
+
+        for(int i = 0; i < qubits.length; i++) {
+            qubits[i] -= min_cluster;
+        }
+        clusters[min_cluster].applyOperator(op, qubits);
+    }
+
+    unittest {
+        writeln("Testing applyOperator");
+        State s = new State();
+        s.insertQubit();
+        s.insertQubit();
+        s.insertQubit();
+        writeln(s.dump);
+        s.applyOperator(generate_hadamard(2), [0, 2]);
+        writeln(s.dump);
+    }
     
     /**
      * Dumps the raw state into a string. 
      * This is for debugging purposes.
      */
     string dump() {
-        string s = "|\u03D5 > = ";
+        string s = "|phi> = ";
         foreach(Substate sub; clusters){
             s ~= sub.num_of_states()==1 
                  ? 
-                 sub.dump() ~ " \u2297  "
+                 sub.dump() ~ " x  "
                  :
-                 "(" ~ sub.dump() ~ ") \u2297  ";
+                 "(" ~ sub.dump() ~ ") x  ";
         }
         return s[0 .. $-3];
     }
+
+
     unittest{
         writeln("Testing dump() in State...");
         Array!Coefstate a;
         Array!Coefstate b;
-        auto qbitnum = uniform(1,4);
-        for(int i=0; i<pow(2, qbitnum); i++){
+        auto qubitsnum = uniform(1,4);
+        for(int i=0; i<pow(2, qubitsnum); i++){
             a.insert(Coefstate(
                complex(pow(-1.0,i%2)*uniform01!double(),
                        uniform01!double()), i)
@@ -126,17 +201,6 @@ class State {
     }
 
 
-    /**
-     * Prints the qbit at the specified index to stdout.
-     *
-     * Params:
-     *      index = The qbit descriptor.
-     * Throws:
-     *      A TangledException if the qbit is entangled.
-     */
-    void print(int qdesc){
-    }
-
    
     /**
      * Expands the tensor product of a given cluster and 
@@ -146,39 +210,36 @@ class State {
      * Params:
      *      cluster_index = the index of the cluster 
      */
-    void expand(int cluster_index){
-        foreach(int qbit_id; qbit_positions.byKey()){
-            if(qbit_positions[qbit_id].pos_in_state==cluster_index+1){
-                qbit_positions[qbit_id].pos_in_state -= 1;
-                qbit_positions[qbit_id].pos_in_clust +=
-                    clusters[cluster_index].num_of_qbits;
+    void expand(size_t cluster_index){
+        ClutteredSubstate cs = new ClutteredSubstate();
+        cs.num_of_qubits = clusters[cluster_index].num_of_qubits + 
+                            clusters[cluster_index + 1].num_of_qubits;
+        cs.states = Array!Coefstate();
+        int i = 0;
+        foreach(Coefstate cfs; clusters[cluster_index]) {
+            foreach( Coefstate cfs1; clusters[cluster_index + 1]) {
+                auto prod = cfs.coefficient * cfs.coefficient;
+                if(prod.re != 0 || prod.im != 0)
+                    cs.states.insert(Coefstate(cfs.coefficient * cfs1.coefficient, i));
+                i++;
             }
         }
-        clusters[cluster_index].expand(clusters[cluster_index+1]);
-        removeElement(clusters, cluster_index+1);    
-    }
-
-    static void removeElement(R)(ref Array!R arr, int index){
-        Array!R newArr;
-        for(int i=0; i<arr.length; i++){
-            if(i!=index)
-                newArr.insert(arr[i]);
+        for(size_t j = cluster_index+2; j < clusters.length; j++) {
+            clusters[j-1] = clusters[j];
         }
-        arr = newArr;
+        clusters.removeBack();
+        clusters[cluster_index] = cs;
     }
 
     unittest {
-        writeln("Testing removeElement() in State...");
-        Array!int a;
-        a.insert(1);
-        a.insert(2);
-        a.insert(3);
-        removeElement(a, 1);
-        assert(a==Array!int([1,3]));
-        writeln("Done!\n");
-    }
-
-    void expand(int from, int to){
+        import qvm.operators;
+        writeln("TESTING STATE EXPAND");
+        State s = new State();
+        s.insertQubit();
+        s.insertQubit();
+        s.clusters[1].applyOperator(generate_hadamard(1), [0]);
+        s.expand(0);
+        writeln(s.dump);
     }
 
     void expandAll(){

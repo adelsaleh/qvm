@@ -85,20 +85,18 @@ Operator tensor(Operator op1, Operator op2) {
 unittest {
     import std.math;
     import std.stdio;
+    writeln("TESTING TENSOR");
     auto op1 = create_operator(1);
     op1.set(0, 0, Complex!double(1, 0));
     op1.set(0, 1, Complex!double(0, 0));
     op1.set(1, 0, Complex!double(0, 0));
     op1.set(1, 1, Complex!double(1, 0));
-    writeln(op1);
     auto op2 = create_operator(1);
     double s = 1/sqrt(2.0L);
     op2.set(0, 0, Complex!double(s, 0));
     op2.set(0, 1, Complex!double(s, 0));
     op2.set(1, 0, Complex!double(s, 0));
     op2.set(1, 1, Complex!double(-s, 0));
-    writeln(op2);
-    writeln(tensor(op1, op2));
 }
 
 /**
@@ -215,6 +213,23 @@ unittest {
         return 0;
     }
     writeln(generate_fcnot(toDelegate(&test_func), 2, 1));
+}
+
+
+/**
+ * Generate the identity matrix
+ */
+Operator generate_identity(size_t n) {
+    Operator op = create_operator(n);
+    for(int i = 0; i < (1<<n); i++) {
+        for(int j = 0; j < (1<<n); j++) {
+            op.set(i, j, Complex!double(0, 0));
+        }
+    }
+    for(int i = 0; i < (1<<n); i++) {
+        op.set(i, i, Complex!double(1, 0));
+    }
+    return op;
 }
 
 /**
