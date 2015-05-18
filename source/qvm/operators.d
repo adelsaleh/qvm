@@ -9,7 +9,8 @@ import std.stdio;
 /**
  * An operator that can evolve the state of the quantum system.
  */
-interface Operator {
+class Operator {
+    string name;
     /**
      * Get the element of the matrix at position i, j
      *
@@ -20,7 +21,7 @@ interface Operator {
      * Returns:
      *      The value at i, j
      */
-     Complex!double get(ulong i, ulong j);
+     abstract Complex!double get(size_t i, size_t j);
 
      /**
       * Set the element of the matrix at position i, j
@@ -31,17 +32,17 @@ interface Operator {
       *     val = The value to set
       */
 
-     void set(ulong i, ulong j, Complex!double val);
+    abstract void set(size_t i, size_t j, Complex!double val);
         
     /**
      * Should be obvious
      */
-     string toString();
+    abstract string toString();
 
     /**
      * The dimension of the operator.
      */
-    ulong dimension();
+    abstract size_t dimension();
 
     /**
      * The number of qubits in the state on which
@@ -49,10 +50,11 @@ interface Operator {
      * 2 qubits can only be applied on a state of 
      * two qubits.
      */
-    ulong qubits();
+    abstract size_t qubits();
+    abstract Operator dup();
 }
 
-Operator create_operator(ulong dim) {
+Operator create_operator(size_t dim) {
     return new SillyOperator(dim);
 }
 
@@ -68,12 +70,12 @@ Operator create_operator(ulong dim) {
  */
 Operator tensor(Operator op1, Operator op2) {
     Operator ret = create_operator(op1.qubits + op2.qubits);
-    for(ulong c_i = 0; c_i < ret.dimension; c_i++) {
-        for(ulong c_j = 0; c_j < ret.dimension; c_j++) {
-            ulong a_i = c_i/op2.dimension;
-            ulong a_j = c_j/op2.dimension;
-            ulong b_i = c_i-a_i*op2.dimension;
-            ulong b_j = c_j-a_j*op2.dimension;
+    for(size_t c_i = 0; c_i < ret.dimension; c_i++) {
+        for(size_t c_j = 0; c_j < ret.dimension; c_j++) {
+            size_t a_i = c_i/op2.dimension;
+            size_t a_j = c_j/op2.dimension;
+            size_t b_i = c_i-a_i*op2.dimension;
+            size_t b_j = c_j-a_j*op2.dimension;
 
             Complex!double cval = op1.get(a_i, a_j) * op2.get(b_i, b_j);
             ret.set(c_i, c_j, cval);
@@ -83,20 +85,6 @@ Operator tensor(Operator op1, Operator op2) {
 }
 
 unittest {
-    import std.math;
-    import std.stdio;
-    writeln("TESTING TENSOR");
-    auto op1 = create_operator(1);
-    op1.set(0, 0, Complex!double(1, 0));
-    op1.set(0, 1, Complex!double(0, 0));
-    op1.set(1, 0, Complex!double(0, 0));
-    op1.set(1, 1, Complex!double(1, 0));
-    auto op2 = create_operator(1);
-    double s = 1/sqrt(2.0L);
-    op2.set(0, 0, Complex!double(s, 0));
-    op2.set(0, 1, Complex!double(s, 0));
-    op2.set(1, 0, Complex!double(s, 0));
-    op2.set(1, 1, Complex!double(-s, 0));
 }
 
 /**
@@ -104,34 +92,38 @@ unittest {
  * Size is always 2**qubits x 2**qubits
  */
 class SillyOperator : Operator {
-    private Complex!double[] matrix;
-    protected ulong _qubits;
-    protected ulong dim;
-    this(ulong _qubits) {
+    public Complex!double[] matrix;
+    protected size_t _qubits;
+    protected size_t dim;
+    this(size_t _qubits) {
         this._qubits = _qubits;
         dim = 1 << _qubits;
         matrix = new Complex!double[dim*dim];
     }
 
-    Complex!double get(ulong i, ulong j) {
+    this(){
+    }
+    override
+    Complex!double get(size_t i, size_t j) {
         return matrix[i*dimension + j];
     }
 
-    void set(ulong i, ulong j, Complex!double val) {
+    override
+    void set(size_t i, size_t j, Complex!double val) {
         matrix[i*dimension + j] = val;
     }
 
     override
     string toString() {
         string ret = "";
-        for(ulong i = 0; i < dim; i++ ){
+        for(size_t i = 0; i < dim; i++ ){
             ret ~= "[";
             if(matrix[i*dim] != Complex!double(0, 0)) {
                 ret ~= ", "~matrix[i*dim].toString();
             }else{
                 ret ~= ",     ";
             }
-            for(ulong j = 1; j < dim; j++) {
+            for(size_t j = 1; j < dim; j++) {
                 if(matrix[i*dim + j] != Complex!double(0, 0)) {
                     ret ~= ", "~matrix[i*dim + j].toString();
                 }else{
@@ -143,12 +135,23 @@ class SillyOperator : Operator {
         return ret;
     }
 
-    public ulong qubits() {
+
+   
+    override
+    public size_t qubits() {
         return _qubits;
     }
 
-    public ulong dimension() {
+    override
+    public size_t dimension() {
         return dim;
+    }
+
+    override 
+    Operator dup(){
+        auto newop = new SillyOperator(this._qubits);
+        newop.matrix = this.matrix.dup();
+        return newop; 
     }
 }
 
@@ -164,14 +167,20 @@ class SillyOperator : Operator {
 // TODO: OPTIMIZE THIS SHIT
 Operator generate_hadamard(size_t n) {
     Operator op = create_operator(1);
+    Operator op1 = create_operator(1);
     double s = 1/sqrt(2.0L);
     op.set(0, 0, Complex!double(s, 0));
     op.set(0, 1, Complex!double(s, 0));
     op.set(1, 0, Complex!double(s, 0));
     op.set(1, 1, Complex!double(-s, 0));
+    op1.set(0, 0, Complex!double(s, 0));
+    op1.set(0, 1, Complex!double(s, 0));
+    op1.set(1, 0, Complex!double(s, 0));
+    op1.set(1, 1, Complex!double(-s, 0));
     for(int i = 1; i < n; i++) {
-        op = op.tensor(op);
+        op = op.tensor(op1);
     }
+    op.name = "hadamard";
     return op;
 }
 
@@ -200,19 +209,19 @@ Operator generate_fcnot(int delegate(int) black_box, size_t in_bits, size_t out_
         int fx = cast(int)((black_box(x) + y) % (1 << out_bits));
         op.set(i, (x << out_bits) | fx, Complex!double(1, 0));
     }
+    op.name = "fcnot";
     return op;
 }
 
 unittest {
-    import std.functional;
     /*
-     * 3 in qubits, 1 out qubit
-     */
+    import std.functional;
     int test_func(int i) {
         if(i > 1) return 1;
         return 0;
     }
     writeln(generate_fcnot(toDelegate(&test_func), 2, 1));
+    */
 }
 
 

@@ -14,20 +14,28 @@ import qvm.operators;
  * A substate that does not store states with 0 coefficients. 
  */
 class ClutteredSubstate : Substate{
-    Array!Coefstate states;        // The states amd the coefficients 
-    private int currentIndex;  // For iterating purposes
+    Array!Coefstate states;           // The states and the coefficients 
+    private int currentIndex;         // For iterating purposes
+    Positions[string] qbit_positions; // Qubit position dictionary
 
     this(){
         super();
         states.insert(Coefstate(complex(1,0),0));
     }
+
+    this(ref Positions[string] qbit_positions){
+        super();
+        this.qbit_positions = qbit_positions;
+        states.insert(Coefstate(complex(1,0),0));
+    }
+
     override
     int num_of_states(){
         return cast(int)states.length;
     }    
 
     override
-    void measure(int qubit_index){
+    int measure(int qubit_index){
         double[] pr = [0.0L, 0.0L];
 
         foreach(Coefstate cs; states) {
@@ -55,6 +63,8 @@ class ClutteredSubstate : Substate{
                 states[i] = Coefstate(cs.coefficient / sqrt(pr[measured]), cs.state);
             }
         }
+        return measured;
+        
     }
 
     unittest {
@@ -69,6 +79,10 @@ class ClutteredSubstate : Substate{
         
     }
 
+    /**
+     * 
+     *
+     */
     void applyOperator(Operator op) {
         assert(op.dimension == (1 << super.num_of_qubits));
         Array!Coefstate new_states;
@@ -93,8 +107,8 @@ class ClutteredSubstate : Substate{
      * Switch the amplitudes of the qubits at index first and index
      * second.
      */
+    deprecated
     void switch_qubits(size_t first, size_t second) {
-
         for(int idx = 0; idx < states.length; idx++) {
             Coefstate cs = states[idx];
             size_t i = cs.state;
@@ -105,11 +119,11 @@ class ClutteredSubstate : Substate{
             new_i &= ~(1 << second);
             new_i |= first_bit << second;
             new_i |= second_bit << first;
-            writeln(new_i);
             states[idx] = Coefstate(cs.coefficient, cast(int)new_i);
-
         }
     }
+    
+
     unittest {
         writeln("Testing switch for CLUTTEREDSubstate");
         double s = 1/sqrt(2.0);
@@ -140,21 +154,121 @@ class ClutteredSubstate : Substate{
      *      op = The operator we need to apply.
      *      qubits = The indices of the qubits we're applying
      *                  the operators on
+     *
+     * Note: Implement an algorithm to decide which qubit
+     * to switch with. 
      */
    override
-   void applyOperator(Operator op, size_t[] qubits){
-        if(op.qubits != qubits.length) {
-            throw new Exception("Invalid number of qubits");
-        }
-        for(int i = 0; i < qubits.length; i++) {
-            switch_qubits(i, qubits[i]);
-        }
-        applyOperator(generate_identity(super.num_of_qubits-qubits.length).tensor(op));
-        writeln("Applied operator: ", dump());
-        for(int i = 0; i < qubits.length; i++) {
-            switch_qubits(i, qubits[i]);
-        }
-    }
+   void applyOperator(Operator op, string[] qubits){
+       // Puts the state every qubit in qubits at the start of each
+       // basis vector and update entry of the table   
+       int i = 1;
+       int cluster_number = qbit_positions[qubits[0]].pos_in_state;  
+       if(qubits.length<this.num_of_qubits-1){
+           foreach(string name; qubits){
+               int currentQubitIndex = qbit_positions[name].pos_in_clust;
+               if(!(i>=currentQubitIndex)){
+                     swap_qubits(i, currentQubitIndex); 
+                   // Updates the qubit positions dictionary  
+                   foreach(ref Positions p; qbit_positions){
+                       if(p.pos_in_state==cluster_number && p.pos_in_clust==i){
+                           int tmp = p.pos_in_clust;
+                           p.pos_in_clust = qbit_positions[name].pos_in_clust;
+                           qbit_positions[name].pos_in_clust = tmp;
+                           break;
+                       }
+                   }
+               }
+               i++;
+           }  
+           writeln("dict = ", qbit_positions);
+       }
+
+       // Generating the super operator for the full state
+       Operator superop = op.dup();
+       superop = superop.tensor(generate_identity(num_of_qubits-
+                       qubits.length));
+       this.applyOperator(superop); 
+
+   }
+   unittest{
+       writeln("\nTesting applyOperator in ClutteredSubstate...");
+       ClutteredSubstate c = new ClutteredSubstate();
+       /**
+       Positions[string] pos = ["a" : Positions(1,0), 
+                                "b" : Positions(2,0),
+                                "c" : Positions(3,0),
+                                "d" : Positions(4,0),
+                                "e" : Positions(5,0)];
+       c.num_of_qubits = 5;
+       auto cf1 = Coefstate(complex(0,1), 1);
+       auto cf2 = Coefstate(complex(1,0), 4);
+       auto cf3 = Coefstate(complex(1,0), 8);
+       auto cf4 = Coefstate(complex(1,0), 10);
+       auto cf5 = Coefstate(complex(1,0), 11);
+       auto cf6 = Coefstate(complex(1,0), 15);
+       auto cf7 = Coefstate(complex(1,-12), 20);
+       c.states.insert(cf1);
+       c.states.insert(cf2);
+       c.states.insert(cf3);
+       c.states.insert(cf4);
+       c.states.insert(cf5);
+       c.states.insert(cf6);
+       c.states.insert(cf7);
+       c.qbit_positions = pos;
+       writeln(c.dump());
+       auto op = new SillyOperator();
+       op.name = "hadamard";
+       c.applyOperator(generate_hadamard(3), ["c", "d", "e"]);
+       writeln(c.dump());**/
+       c.num_of_qubits=1;
+       writeln(c.dump());
+       Positions[string] pos = ["a" : Positions(1,0)]; 
+       c.qbit_positions = pos;
+       c.applyOperator(generate_hadamard(1), ["a"]);
+       writeln(c.dump());
+       writeln("Done!\n");
+
+   }
+
+   /**
+    * Beautiful equation by George Zakhour
+    */
+   void swap_qubits(int j, int i){
+       writeln(j," ", i);
+       foreach(ref Coefstate cf; this.states){
+           auto a = cf.state;
+           auto ai = (a>>(i-1)) & 1;  
+           auto aj = (a>>(j-1)) & 1;
+           if(!(ai==aj)){
+             cf.state = abs(aj-ai)*(a+(aj-ai)*(pow(2,i-1)-pow(2,j-1)))
+                 +a*abs(ai+aj-1);
+           }
+       }
+       writeln(this.dump());
+   }
+
+   unittest{
+       writeln("\nTesting swap_qubits...");
+       ClutteredSubstate c = new ClutteredSubstate();
+       c.num_of_qubits = 4;
+       auto cf1 = Coefstate(complex(0,1), 1);
+       auto cf2 = Coefstate(complex(1,0), 4);
+       auto cf3 = Coefstate(complex(1,0), 8);
+       auto cf4 = Coefstate(complex(1,0), 10);
+       auto cf5 = Coefstate(complex(1,0), 11);
+       auto cf6 = Coefstate(complex(1,0), 15);
+       c.states.insert(cf1);
+       c.states.insert(cf2);
+       c.states.insert(cf3);
+       c.states.insert(cf4);
+       c.states.insert(cf5);
+       c.states.insert(cf6);
+       writeln(c.dump());
+       c.swap_qubits(1,2);
+       writeln(c.dump());
+       writeln("Done!");
+   }
 
 
 
@@ -188,7 +302,7 @@ class ClutteredSubstate : Substate{
                   ~ to!string(states[i].state) ~ ">";
             }
         }
-        return s[3..$];
+        return !(s=="") ? s[3..$] : "EMPTY_STATE";
     }
     unittest{
         writeln("Testing dump() in ClutteredSubstate...");

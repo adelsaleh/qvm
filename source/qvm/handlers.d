@@ -111,7 +111,7 @@ struct ProgramState {
      */
     void measureHandler() {
         int desc = sc.qubitDesc(p.front.qubit);
-        s.measure(0);
+        s.measure("");
     }
 
     /**

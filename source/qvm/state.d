@@ -26,26 +26,26 @@ struct Positions{
  */
 class State {
     Array!(Substate) clusters;     //  THE FUCKING STATES!!!
-    
+    Positions[string] qbit_positions; 
+   
     this() {}
 
     /**
      * Adds a qubits to the current quantum
      * state initialized to |0>. By default,
      * every cluster is initialized to a ClutteredSubstate
-     *
-     *
      */
-    void insertQubit() {
-        clusters.insert(new ClutteredSubstate());
+    void insertQubit(string qubit_name) {
+        qbit_positions[qubit_name] = Positions(1,qbit_positions.length);
+        clusters.insert(new ClutteredSubstate(qbit_positions));
     }
 
     unittest{
         writeln("Testing insertQubit() in State...");
         State s=new State();
-        s.insertQubit();
-        s.insertQubit();
-        s.insertQubit(); 
+        s.insertQubit("a");
+        s.insertQubit("b");
+        s.insertQubit("c"); 
         writeln(s.dump());
         writeln("Done!\n");
     }
@@ -58,46 +58,28 @@ class State {
      * Params:
      *      index = The qubits descriptor.
      */
-    void measure(int qubit_index) {
-        int qubits = 0;
-        int i = 0;
-        for(i = 0; i < clusters.length; i++) {
-            if(qubits+clusters[i].num_of_qubits > qubit_index) {
-                break;
-            }
-            qubits += clusters[i].num_of_qubits;
-        }
-        clusters[i].measure(qubit_index - qubits);
-    }
+    void measure(string qubit_name) {
 
+        // This is the part where you factor out the qubit that has been
+        // measured into a new cluster 
+        
+    }
     unittest {
-        writeln("Testing measurement in State");
-        double s = 1/sqrt(2.0L);
-        State state = new State();
-        Complex!double[] bellStates = [Complex!double(s, 0)
-                                    ,Complex!double(0, 0)
-                                    ,Complex!double(0, 0)
-                                    ,Complex!double(s, 0)];
-
-
-        Complex!double[] invBellStates = [Complex!double(s, 0)
-                                       ,Complex!double(0, 0)
-                                       ,Complex!double(0, 0)
-                                       ,Complex!double(-s, 0)];
-        state.clusters.insert(new ExpandedSubstate(bellStates));
-        state.clusters.insert(new ExpandedSubstate(invBellStates));
-        writeln(state.clusters[0].num_of_qubits);
-        state.measure(3);
-        writeln(state.dump);
+        writeln("\nTesting measurement in State...");
+        writeln("Done!\n");
     }
 
+    /**
+     *
+     *
+     */
+    deprecated
     size_t find_cluster(size_t qubit) {
         int qubits = 0;
         for(int i = 0; i < clusters.length; i++) {
             qubits += clusters[i].num_of_qubits;
             if(qubits > qubit) {
                 return i;
-                
             }
         }
 
@@ -106,13 +88,14 @@ class State {
     unittest {
         writeln("Testing find_cluster");
         State s = new State();
-        s.insertQubit();
-        s.insertQubit();
+        s.insertQubit("a");
+        s.insertQubit("b");
         writeln(s.dump);
         
         writeln("ClusterAAA: ", s.find_cluster(0));
-        writeln("ClusterAAA: ", s.find_cluster(1));
+        writeln("ClusterAAA: ", s.find_cluster(1),"\n");
     }
+
     /**
      * Applies the operator op on the list of qubits provided
      * in R. R must be a container of ints.
@@ -122,39 +105,64 @@ class State {
      *      qubits = The indices of the qubits we're applying
      *                  the operators on
      */
+    void applyOperator(Operator op, string[] qubits) {
+        switch(op.name) {
+            case "hadamard": 
+                // Search for clusters on which to apply Hadamard
+                string[][int] clustered;
+                foreach(string name; qubits){
+                    clustered[qbit_positions[name].pos_in_state] ~= name;
+                }
 
-    void applyOperator(Operator op, size_t[] qubits) {
-        size_t min_cluster = find_cluster(qubits[0]);
-        size_t max_cluster = min_cluster;
-        foreach(qubit; qubits) {
-            size_t cl = find_cluster(qubit);
-            if (cl < min_cluster) {
-                min_cluster = cl;
-            } else if(cl > max_cluster) {
-                max_cluster = cl;
-            }
+                // Applies Hadamard to each cluster containing a qubit
+                // from qubits
+                foreach(int index; clustered.byKey()){
+                    clusters[index].applyOperator(
+                            generate_hadamard(clustered[index].length), 
+                            clustered[index]); 
+                }
+                break;
+            case "fcnot":
+                break;
+            default:
+                int min=32;
+                int max=0;
+                foreach(string name; qubits){
+                    if(qbit_positions[name].pos_in_state >= max){
+                        max = qbit_positions[name].pos_in_state; 
+                    }
+                }
+                foreach(string name; qubits) {
+                    if(qbit_positions[name].pos_in_state <= min) {
+                        min = qbit_positions[name].pos_in_state; 
+                    }
+                }
+                
+                while(max>min){
+                    expand(min);
+                    max--;
+                }
+                clusters[min].applyOperator(op, qubits);
+                break;  
         }
-
-        while(max_cluster > min_cluster) {
-            expand(min_cluster);
-            max_cluster--;
-        }
-
-        for(int i = 0; i < qubits.length; i++) {
-            qubits[i] -= min_cluster;
-        }
-        clusters[min_cluster].applyOperator(op, qubits);
     }
-
     unittest {
-        writeln("Testing applyOperator");
+        writeln("Testing applyOperator in state");
         State s = new State();
-        s.insertQubit();
-        s.insertQubit();
-        s.insertQubit();
-        writeln(s.dump);
-        s.applyOperator(generate_hadamard(2), [0, 2]);
-        writeln(s.dump);
+        s.insertQubit("a");
+        s.insertQubit("b");
+        s.insertQubit("c"); 
+        writeln("Initial:" ,s.dump());
+        writeln("Dict:", s.qbit_positions);
+        auto op = new SillyOperator();
+        op.name = "hadamard";
+        s.applyOperator(op,["a","b","c"]);
+        writeln("H1: ", s.dump());
+        s.applyOperator(op,["b"]);
+        writeln("H2: ", s.dump());
+        s.applyOperator(generate_toffoli,["a", "b", "c"]); 
+        writeln("Toffoli: ", s.dump());
+        writeln("Done!\n");
     }
     
     /**
@@ -172,8 +180,6 @@ class State {
         }
         return s[0 .. $-3];
     }
-
-
     unittest{
         writeln("Testing dump() in State...");
         Array!Coefstate a;
@@ -200,7 +206,6 @@ class State {
         writeln("Done!\n");
     }
 
-
    
     /**
      * Expands the tensor product of a given cluster and 
@@ -211,40 +216,77 @@ class State {
      *      cluster_index = the index of the cluster 
      */
     void expand(size_t cluster_index){
-        ClutteredSubstate cs = new ClutteredSubstate();
-        cs.num_of_qubits = clusters[cluster_index].num_of_qubits + 
-                            clusters[cluster_index + 1].num_of_qubits;
-        cs.states = Array!Coefstate();
-        int i = 0;
-        foreach(Coefstate cfs; clusters[cluster_index]) {
-            foreach( Coefstate cfs1; clusters[cluster_index + 1]) {
-                auto prod = cfs.coefficient * cfs.coefficient;
-                if(prod.re != 0 || prod.im != 0)
-                    cs.states.insert(Coefstate(cfs.coefficient * cfs1.coefficient, i));
-                i++;
+        // Updates the position dictionary of the qubits
+        foreach(string qbit_name; qbit_positions.byKey()){
+            if(qbit_positions[qbit_name].pos_in_state==cluster_index+1){
+                qbit_positions[qbit_name].pos_in_state -= 1;
+                qbit_positions[qbit_name].pos_in_clust +=
+                    clusters[cluster_index].num_of_qubits;
+            } else if(qbit_positions[qbit_name].pos_in_state>cluster_index) {
+                qbit_positions[qbit_name].pos_in_state -= 1;
             }
+
         }
+        // Expands the states
+        clusters[cluster_index].expand(clusters[cluster_index + 1]);
+
+        // Remove the no longer needed cluster
         for(size_t j = cluster_index+2; j < clusters.length; j++) {
             clusters[j-1] = clusters[j];
         }
         clusters.removeBack();
-        clusters[cluster_index] = cs;
     }
-
     unittest {
-        import qvm.operators;
-        writeln("TESTING STATE EXPAND");
+        writeln("Testing expand in State...");
         State s = new State();
-        s.insertQubit();
-        s.insertQubit();
-        s.clusters[1].applyOperator(generate_hadamard(1), [0]);
+        s.insertQubit("a");
+        s.insertQubit("b");
+        s.insertQubit("c"); 
+        writeln(s.dump());
         s.expand(0);
-        writeln(s.dump);
+        writeln(s.dump());
+        auto op = new SillyOperator();
+        op.name = "hadamard";
+        s.applyOperator(op,["a","b","c"]);
+        writeln(s.dump());
+        writeln("Done!\n");
     }
 
+    /**
+     *
+     *
+     */
     void expandAll(){
         while(clusters.length!=1){
             expand(0);
         }
+    }
+
+    unittest {
+        writeln("\nTesting expandAll...");
+        Array!Coefstate a;
+        Array!Coefstate b;
+        auto qubitsnum = uniform(1,4);
+        for(int i=0; i<pow(2, qubitsnum); i++){
+            a.insert(Coefstate(
+               complex(pow(-1.0,i%2)*uniform01!double(),
+                       uniform01!double()), i)
+            );
+            b.insert(Coefstate(
+               complex(uniform01!double(),
+                       pow(-1.0,i%2)*uniform01!double()), i)
+            );
+        }
+        ClutteredSubstate clut1 = new ClutteredSubstate(); 
+        ClutteredSubstate clut2 = new ClutteredSubstate(); 
+        clut1.states=a;
+        clut2.states=b;
+        State st = new State();
+        st.clusters.insert(clut1);
+        st.clusters.insert(clut2);
+        writeln(st.dump());
+        st.expandAll();
+        writeln(st.dump());
+        writeln("Done!");
     }
 }

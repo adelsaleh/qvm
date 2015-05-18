@@ -43,7 +43,7 @@ class ExpandedSubstate : Substate{
     }
 
     override
-    void measure(int qubit_index){
+    int measure(int qubit_index){
         writeln("Measuring: ", qubit_index);
         double[] pr = [0.0L, 0.0L];
 
@@ -69,16 +69,10 @@ class ExpandedSubstate : Substate{
                 states[i] /= sqrt(pr[measured]);
             }
         }
+        return measured;
     }
 
     unittest {
-        writeln("Testing ExpandedSubState measurement");
-        double s = 1/sqrt(2.0L);
-        ExpandedSubstate ss = new ExpandedSubstate([Complex!double(s, 0), 
-                                                    Complex!double(0, 0), 
-                                                    Complex!double(0, 0),
-                                                    Complex!double(s, 0)]);
-        ss.measure(1);
     }
 
 
@@ -120,49 +114,12 @@ class ExpandedSubstate : Substate{
     }
 
     unittest {
-        writeln("Testing switch for ExpandedSubstate");
-        double s = 1/sqrt(2.0);
-        Complex!double[] init = [Complex!double(s*s, 0)
-                                ,Complex!double(0, 0)
-                                ,Complex!double(s*s, 0)
-                                ,Complex!double(s, 0)
-                                ,Complex!double(0, 0)
-                                ,Complex!double(0, 0)
-                                ,Complex!double(0, 0)
-                                ,Complex!double(0, 0)];
-        auto ss = new ExpandedSubstate(init);
-        writeln(ss.dump);
-        ss.switch_qubits(1, 2);
-        writeln(ss.dump);
     }
     override
-    void applyOperator(Operator op, size_t[] qubits){
-        if(op.dimension != qubits.length) {
-            throw new Exception("Invalid number of qubits");
-        }
-        for(int i = 0; i < qubits.length; i++) {
-            switch_qubits(i, qubits[i]);
-        }
-        applyOperator(generate_identity(super.num_of_qubits-qubits.length).tensor(op));
-        for(int i = 0; i < qubits.length; i++) {
-            switch_qubits(i, qubits[i]);
-        }
+    void applyOperator(Operator op, string[] qubits){
     }
 
     unittest {
-        import qvm.operators;
-        writeln("Testing apply operator on ExpandedSubstate");
-        Operator op = generate_hadamard(1);
-        writeln(generate_identity(1));
-        op = op.tensor(generate_identity(1));
-        writeln(op);
-        Complex!double[] init = [Complex!double(1, 0)
-                                ,Complex!double(0, 0)
-                                ,Complex!double(0, 0)
-                                ,Complex!double(0, 0)];
-        auto ss = new ExpandedSubstate(init);
-        ss.applyOperator(op);
-        writeln(ss.dump);
     }
 
     /**
@@ -191,7 +148,7 @@ class ExpandedSubstate : Substate{
                     
     override
     bool empty(){
-        if(currentIndex == states.length){
+        if(currentIndex >= states.length){
             currentIndex = 0;
             return true;
         }
@@ -208,7 +165,8 @@ class ExpandedSubstate : Substate{
      */
     override
     void popFront(){
-        if(!(states[currentIndex+1].re==0 &&
+        if(!(currentIndex+1>=states.length)&&
+           !(states[currentIndex+1].re==0 ||
              states[currentIndex+1].im==0)){
              currentIndex++;
          }else{ 
