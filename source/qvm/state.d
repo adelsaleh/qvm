@@ -58,10 +58,11 @@ class State {
      * Params:
      *      index = The qubits descriptor.
      */
-    void measure(string qubit_name) {
-
+    int measure(string qubit_name) {
+        clusters[qbit_positions[qubit_name].pos_in_state].measure(qubit_name);
         // This is the part where you factor out the qubit that has been
         // measured into a new cluster 
+        return 0;
         
     }
     unittest {
@@ -122,11 +123,16 @@ class State {
                             clustered[index]); 
                 }
                 break;
+                
             case "fcnot":
                 break;
+            
+            // Case when the operator is not one of the atomic operators 
+            // In this case    
             default:
                 int min=32;
                 int max=0;
+                // Get the max cluster and the min cluster
                 foreach(string name; qubits){
                     if(qbit_positions[name].pos_in_state >= max){
                         max = qbit_positions[name].pos_in_state; 
@@ -138,10 +144,13 @@ class State {
                     }
                 }
                 
+                // Expand accordingly
                 while(max>min){
                     expand(min);
                     max--;
                 }
+
+                // Apply operator on specified cluster 
                 clusters[min].applyOperator(op, qubits);
                 break;  
         }
@@ -160,8 +169,8 @@ class State {
         writeln("H1: ", s.dump());
         s.applyOperator(op,["b"]);
         writeln("H2: ", s.dump());
-        s.applyOperator(generate_toffoli,["a", "b", "c"]); 
-        writeln("Toffoli: ", s.dump());
+        s.applyOperator(generate_fredkin,["a", "b", "c"]); 
+        writeln("Fredkin: ", s.dump());
         writeln("Done!\n");
     }
     

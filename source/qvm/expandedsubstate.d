@@ -43,6 +43,11 @@ class ExpandedSubstate : Substate{
     }
 
     override
+    int measure(string qubit_name){
+        return 0;
+    }
+
+    deprecated
     int measure(int qubit_index){
         writeln("Measuring: ", qubit_index);
         double[] pr = [0.0L, 0.0L];

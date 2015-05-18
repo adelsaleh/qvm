@@ -37,6 +37,7 @@ class Operator {
     /**
      * Should be obvious
      */
+    override
     abstract string toString();
 
     /**

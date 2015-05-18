@@ -18,7 +18,7 @@ abstract class Substate{
        this.num_of_qubits = num_of_qubits;
    }
 
-   abstract int measure(int qubit_id);   
+   abstract int measure(string qubit_id);   
    abstract void applyOperator(Operator op, string[] qubits);
    abstract string dump();
    abstract void print();
