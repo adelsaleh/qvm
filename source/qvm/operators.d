@@ -341,6 +341,24 @@ Operator generate_toffoli() {
 }
 
 /**
+ * Generate an instance of the Cnot operator
+*/
+Operator generate_cnot() {
+    Operator op = create_operator(2);
+    for(int i=0;i<op.dimension;i++) {
+        for(int j=0;j<op.dimension;j++) {
+            op.set(i, j, Complex!double(0,0));
+        }
+    }
+
+    op.set(0, 0, Complex!double(1, 0));
+    op.set(1, 1, Complex!double(1, 0));
+    op.set(2, 3, Complex!double(1, 0));
+    op.set(3, 2, Complex!double(1, 0));
+    return op;
+}
+
+/**
  * Generate a rotation by a certain angle
  */
 Operator generate_rotation(double theta) {
@@ -355,6 +373,7 @@ Operator generate_rotation(double theta) {
 
 Operator[] ops_available = [null, generate_identity(1)
                            ,generate_hadamard(1)
+                           ,generate_cnot()
                            ,generate_swap()
                            ,generate_Y()
                            ,generate_Z()
@@ -362,4 +381,5 @@ Operator[] ops_available = [null, generate_identity(1)
                            ,generate_toffoli()
                            ,generate_rotation(PI/4)
                            ,generate_rotation(PI/8)
-                           ,generate_rotation(PI/3)];
+                           ,generate_rotation(PI/3)
+                           ,generate_cnot()];

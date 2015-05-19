@@ -128,8 +128,6 @@ class ClutteredSubstate : Substate{
         }
         for(int i = 0; i < states.length; i++) {
             auto cs = states[i];
-            writeln((cs.state & (1 << qubit_index)));
-            writeln((cs.state & (1 << qubit_index)) ^ (measured << qubit_index) );
             if((cs.state & (1 << qubit_index)) != (measured << qubit_index)) {
                 states[i] = Coefstate(Complex!double(0.0, 0.0), cs.state);
             }else{
@@ -160,7 +158,6 @@ class ClutteredSubstate : Substate{
      *      op = n by n operator to be applied to the state
      */
     void applyOperator(Operator op) {
-        writeln(op);
         assert(op.dimension == (1 << super.num_of_qubits));
         Array!Coefstate new_states;
         for(int i = 0; i < op.dimension; i++) {

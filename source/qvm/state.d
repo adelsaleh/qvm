@@ -59,10 +59,9 @@ class State {
      *      index = The qubits descriptor.
      */
     int measure(string qubit_name) {
-        clusters[qbit_positions[qubit_name].pos_in_state].measure(qubit_name);
+        return clusters[qbit_positions[qubit_name].pos_in_state].measure(qubit_name);
         // This is the part where you factor out the qubit that has been
         // measured into a new cluster 
-        return 0;
         
     }
     unittest {
@@ -150,8 +149,6 @@ class State {
                     max--;
                 }
 
-                writeln(qubits);
-                writeln(this.dump);
                 // Apply operator on specified cluster 
                 clusters[min].applyOperator(op, qubits);
                 break;  

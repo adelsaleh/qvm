@@ -1,3 +1,8 @@
+/**
+ * The qvm handleer module
+ *
+ * Authors: Bayan Rafeh, Adel Saleh
+*/
 module qvm.handlers;
 
 import std.stdio;
@@ -10,6 +15,10 @@ import qvm.state;
 import qvm.operators;
 import qvm.exceptions;
 
+/**
+ * A class that descriptions a pointer to a function
+ * Is a tree of function executions
+*/
 class FunctionPointerNode {
     FunctionPointerNode[] children;
     FunctionPointer fp;
@@ -17,6 +26,15 @@ class FunctionPointerNode {
     size_t depth;
     size_t expected_qubits;
     bool reachedEnd;
+
+    /**
+     * Constructor
+     *
+     * Parameters:
+     *      fp = the function pointer
+     *      depth = the depth of the tree
+     *      expected = the number of expected qubits
+    */
     this(FunctionPointer fp, size_t depth, size_t expected) {
         this.fp = fp;
         this.children = [];
@@ -26,6 +44,9 @@ class FunctionPointerNode {
         reachedEnd = fp.current.instructions.length == 0;
     }
 
+    /**
+     * Returns: the current instruction
+    */
     Instruction currentInstruction() {
         import qlib.asm_tokens;
         if(fp.current.instructions.length > 0) 
@@ -34,6 +55,9 @@ class FunctionPointerNode {
             return Instruction(Opcode.NULL, 0, 0, 0, 0);
     }
 
+    /**
+     * jumps to the next
+    */
     void toNext() {
         fp.instruction ++;
         if(fp.instruction == fp.current.instructions.length) {
@@ -42,6 +66,9 @@ class FunctionPointerNode {
         }
     }
 
+    /**
+     * Returns: whether it ended or not
+    */
     bool ended() {
         return reachedEnd;
     }
@@ -117,7 +144,6 @@ class FunctionPointerTree {
             Operator op1 = constructOperator(node.children[0]);
             Operator op2 = constructOperator(node.children[1]);
             Operator ret = generate_ifelse(op1, op2);
-            writeln("out qubits: ", ret.qubits);
             ret = ret.tensor(generate_identity(node.expected_qubits-ret.qubits));
             node.operator = null;
             node.fp.queue.collapse();
@@ -205,7 +231,6 @@ class FunctionPointerTree {
     }
 
     void prune() {
-        writeln(this);
         prune(root);
     }
 }
@@ -301,7 +326,6 @@ class Environment {
         qubit_counter ++;
         tree.root.expected_qubits = qubit_counter;
         s.insertQubit(to!string(qubit_mapping[qubit_id]));
-
     }
 
     unittest {
@@ -341,7 +365,6 @@ class Environment {
 
 
     void branchDouble(FunctionPointerNode node, size_t op1, size_t op2) {
-        writeln("IF OP: ", op2);
         auto arr = [getFp(node, op1), getFp(node, op2)];
         tree.createBranch(node, arr, node.fp.queue.size); 
 
@@ -364,7 +387,22 @@ bool function(FunctionPointerNode, Environment)[] handlers = [
     &processLoop,
     &processOn,
     &processApply,
-    &processLoad];
+    &processLoad,
+    &processDump,
+    &processSrec,
+    &processErec,
+    &processQsrec,
+    &processQerec,
+    &processFcnot];
+bool processSrec(FunctionPointerNode node, Environment env) {return true;}
+bool processErec(FunctionPointerNode node, Environment env) {return true;}
+bool processQsrec(FunctionPointerNode node, Environment env) {return true;}
+bool processQerec(FunctionPointerNode node, Environment env) {return true;}
+
+bool processFcnot(FunctionPointerNode node, Environment env) {
+    size_t number = node.currentInstruction.number;
+    return true;
+}
 
 bool processNull(FunctionPointerNode node, Environment env) {
     if(node.depth == 0) {
@@ -394,7 +432,6 @@ bool processOn(FunctionPointerNode node, Environment env) {
 }
 
 bool processApply(FunctionPointerNode node, Environment env) {
-    writeln("APPLY CALLED");
     size_t operator = node.currentInstruction.op1;
     if(operator < ops_available.length) {
         node.operator = ops_available[operator];
@@ -442,6 +479,10 @@ bool processLoop(FunctionPointerNode node, Environment env) {
     return true;
 }
 
+bool processDump(FunctionPointerNode node, Environment env) {
+    writeln("DUMP: " ~ env.s.dump());
+    return true;
+}
 bool processLoad(FunctionPointerNode node, Environment env) {
     size_t index = node.fp.queue.dequeue();
     env.mapQubit(node.currentInstruction.qubit, index);

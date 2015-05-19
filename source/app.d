@@ -21,5 +21,17 @@ void executeProgram(string path) {
 }
 
 void main(string[] args) {
-    executeProgram(args[1]);
+    if(args.length < 2) {
+        usage();
+    } else {
+        try {
+            executeProgram(args[1]);
+        } catch(Exception e) {
+            e.msg.writeln;
+        }
+    }
+}
+
+void usage() {
+    "Usage: qvm filename".writeln;
 }
