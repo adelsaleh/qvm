@@ -4,6 +4,8 @@
 	"copyright": "Copyright © 2015,Bayan Rafeh",
 	"authors": ["Bayan Rafeh", "Adel Saleh", "George Zakhour"],
 	"dependencies": {
-        "qlib": {"path": "../qlib"}
-	}
+        	"qlib": {"path": "../qlib"},
+		"vibe-d": "~>0.7.23"
+	},
+	"versions": ["VibeCustomMain"]
 }

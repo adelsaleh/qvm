@@ -36,7 +36,7 @@ class State {
      * every cluster is initialized to a ClutteredSubstate
      */
     void insertQubit(string qubit_name) {
-        qbit_positions[qubit_name] = Positions(1,qbit_positions.length);
+        qbit_positions[qubit_name] = Positions(1,cast(int)qbit_positions.length);
         clusters.insert(new ClutteredSubstate(qbit_positions));
     }
 
@@ -150,6 +150,8 @@ class State {
                     max--;
                 }
 
+                writeln(qubits);
+                writeln(this.dump);
                 // Apply operator on specified cluster 
                 clusters[min].applyOperator(op, qubits);
                 break;  
@@ -163,7 +165,7 @@ class State {
         s.insertQubit("c"); 
         writeln("Initial:" ,s.dump());
         writeln("Dict:", s.qbit_positions);
-        auto op = new SillyOperator();
+        auto op = new SillyOperator(3);
         op.name = "hadamard";
         s.applyOperator(op,["a","b","c"]);
         writeln("H1: ", s.dump());
@@ -254,7 +256,7 @@ class State {
         writeln(s.dump());
         s.expand(0);
         writeln(s.dump());
-        auto op = new SillyOperator();
+        auto op = new SillyOperator(3);
         op.name = "hadamard";
         s.applyOperator(op,["a","b","c"]);
         writeln(s.dump());

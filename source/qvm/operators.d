@@ -59,6 +59,10 @@ Operator create_operator(size_t dim) {
     return new SillyOperator(dim);
 }
 
+Operator clone_operator(Operator op) {
+    return new SillyOperator(cast(SillyOperator)op);
+}
+
 /**
  * Applies the tensor product to this operator, 
  * the input being the right.
@@ -89,7 +93,7 @@ unittest {
 }
 
 /**
- * A silly operator, not performance aware in the slightest.
+ * A silly operator, completely suboptimal for simplicity
  * Size is always 2**qubits x 2**qubits
  */
 class SillyOperator : Operator {
@@ -102,10 +106,13 @@ class SillyOperator : Operator {
         matrix = new Complex!double[dim*dim];
     }
 
-    this(){
+    this(SillyOperator op) {
+        _qubits = op._qubits;
+        dim = op.dim;
+        matrix = op.matrix[];
     }
-    override
-    Complex!double get(size_t i, size_t j) {
+
+    Complex!double get(ulong i, ulong j) {
         return matrix[i*dimension + j];
     }
 
@@ -183,6 +190,20 @@ Operator generate_hadamard(size_t n) {
     }
     op.name = "hadamard";
     return op;
+}
+
+Operator generate_ifelse(Operator op1, Operator op2) {
+    assert(op1.dimension == op2.dimension);
+    Operator ret = create_operator(op1.qubits + 1);
+    for(int i = 0; i < op1.dimension; i++) {
+        for(int j = 0; j < op1.dimension; j++) {
+            ret.set(i, j, op1.get(i, j));
+            ret.set(i+op2.dimension, j+op2.dimension, op2.get(i, j));
+            ret.set(i+op1.dimension, j, Complex!double(0, 0));
+            ret.set(i, j+op1.dimension, Complex!double(0, 0));
+        }
+    }
+   return ret;
 }
 
 /**
@@ -331,3 +352,14 @@ Operator generate_rotation(double theta) {
     return op;
 }
 
+
+Operator[] ops_available = [null, generate_identity(1)
+                           ,generate_hadamard(1)
+                           ,generate_swap()
+                           ,generate_Y()
+                           ,generate_Z()
+                           ,generate_fredkin()
+                           ,generate_toffoli()
+                           ,generate_rotation(PI/4)
+                           ,generate_rotation(PI/8)
+                           ,generate_rotation(PI/3)];

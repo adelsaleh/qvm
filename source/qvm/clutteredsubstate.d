@@ -98,7 +98,7 @@ class ClutteredSubstate : Substate{
         s.insertQubit("c"); 
         writeln("Initial:" ,s.dump());
         writeln("Dict:", s.qbit_positions);
-        auto op = new SillyOperator();
+        auto op = new SillyOperator(3);
         op.name = "hadamard";
         s.applyOperator(op,["a","b","c"]);
         writeln("H: ", s.dump());
@@ -160,6 +160,7 @@ class ClutteredSubstate : Substate{
      *      op = n by n operator to be applied to the state
      */
     void applyOperator(Operator op) {
+        writeln(op);
         assert(op.dimension == (1 << super.num_of_qubits));
         Array!Coefstate new_states;
         for(int i = 0; i < op.dimension; i++) {
